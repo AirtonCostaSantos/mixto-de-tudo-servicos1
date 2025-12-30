@@ -13,7 +13,8 @@
     "react-dom": "^19.2.3",
     "recharts": "^3.6.0",
     "jspdf": "2.5.1",
-    "jspdf-autotable": "3.8.2"
+    "jspdf-autotable": "3.8.2",
+    "@google/genai": "latest"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
