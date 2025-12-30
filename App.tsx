@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Layout from './components/Layout';
 import { 
@@ -62,7 +61,6 @@ const App: React.FC = () => {
   });
 
   // States para UI
-  const [expandedBudgetId, setExpandedBudgetId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [tempBudgetItems, setTempBudgetItems] = useState<{
@@ -73,7 +71,7 @@ const App: React.FC = () => {
   // AI Chat States
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [aiMessages, setAiMessages] = useState<{role: 'user' | 'ai', text: string}[]>([
-    { role: 'ai', text: 'Olá! Sou o assistente do Mixto de Tudo. Como posso ajudar com seus serviços hoje?' }
+    { role: 'ai', text: 'Olá! Sou o assistente do Mixto de Tudo. Posso ajudar você com informações sobre seus clientes, orçamentos ou como usar o sistema. Como posso ajudar hoje?' }
   ]);
   const [aiInput, setAiInput] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -108,15 +106,25 @@ const App: React.FC = () => {
 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-      const systemPrompt = `Você é o assistente virtual do software "Mixto de Tudo Serviços".
-      Contexto atual do sistema:
-      - Total de Clientes: ${stats.totalClients}
-      - Total de Orçamentos: ${stats.totalBudgets}
-      - Receita Total Acumulada: R$ ${stats.totalRevenue.toLocaleString('pt-BR')}
-      - Serviços em andamento/aprovados: ${stats.activeServices}
       
-      Responda de forma profissional, amigável e concisa em Português. 
-      Se o usuário perguntar como fazer algo, explique usando os menus do app: Dashboard, Clientes, Serviços, Materiais, Orçamentos e Acompanhamento.`;
+      const systemPrompt = `Você é o assistente virtual exclusivo do software "Mixto de Tudo Serviços".
+      Você ajuda o administrador a gerenciar o negócio.
+      
+      DADOS ATUAIS DO SISTEMA:
+      - Total de Clientes cadastrados: ${stats.totalClients}
+      - Total de Orçamentos realizados: ${stats.totalBudgets}
+      - Receita Bruta Total: R$ ${stats.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+      - Serviços Ativos (Em andamento ou Aprovados): ${stats.activeServices}
+      
+      LISTA DE CLIENTES:
+      ${clients.map(c => `- ${c.name} (Doc: ${c.document})`).join('\n')}
+
+      INSTRUÇÕES:
+      1. Responda de forma profissional, executiva e amigável.
+      2. Se perguntarem sobre faturamento, cite o valor da Receita Bruta Total.
+      3. Se perguntarem sobre clientes, você pode citar nomes da lista.
+      4. Se o usuário quiser saber como cadastrar algo, direcione para as abas no menu lateral.
+      5. Mantenha as respostas curtas e objetivas.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -124,10 +132,10 @@ const App: React.FC = () => {
         config: { systemInstruction: systemPrompt }
       });
 
-      setAiMessages(prev => [...prev, { role: 'ai', text: response.text || "Desculpe, não consegui processar isso agora." }]);
+      setAiMessages(prev => [...prev, { role: 'ai', text: response.text || "Não consegui processar sua solicitação agora." }]);
     } catch (error) {
-      console.error("Erro AI:", error);
-      setAiMessages(prev => [...prev, { role: 'ai', text: "Houve um erro ao conectar com a inteligência artificial. Verifique se a chave API está configurada no Netlify." }]);
+      console.error("Erro na API Gemini:", error);
+      setAiMessages(prev => [...prev, { role: 'ai', text: "Erro ao conectar com a inteligência artificial. Verifique se a chave API_KEY está configurada corretamente no seu painel do Netlify." }]);
     } finally {
       setIsAiLoading(false);
     }
@@ -168,24 +176,17 @@ const App: React.FC = () => {
     setEditingItem(null);
   };
 
-  const addTaskToBudget = (budgetId: string, stage: 'Planejamento' | 'Execução', description: string) => {
-    if (!description.trim()) return;
-    const newTask: ProjectTask = { id: Math.random().toString(36).substr(2, 9), description, stage, status: TaskStatus.PENDING };
-    setBudgets(prev => prev.map(b => b.id === budgetId ? { ...b, tasks: [...b.tasks, newTask] } : b));
-  };
-
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
       <div className="fade-in">
-        {/* Renderização de Abas existente... */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
                 { label: 'Clientes', value: stats.totalClients },
                 { label: 'Orçamentos', value: stats.totalBudgets },
-                { label: 'Receita Bruta', value: `R$ ${stats.totalRevenue.toLocaleString()}` },
-                { label: 'Serviços em Aberto', value: stats.activeServices },
+                { label: 'Receita Bruta', value: `R$ ${stats.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
+                { label: 'Serviços Ativos', value: stats.activeServices },
               ].map((stat, i) => (
                 <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col hover:border-indigo-300 transition-colors">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.label}</span>
@@ -193,7 +194,7 @@ const App: React.FC = () => {
                 </div>
               ))}
             </div>
-            {/* Gráfico Recharts... */}
+            
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
                <h3 className="text-sm font-black text-gray-800 mb-8 flex items-center gap-2 uppercase tracking-widest">
                 <span className="w-1.5 h-4 bg-indigo-600 rounded-full"></span>
@@ -220,72 +221,37 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Abas de Clientes, Orçamentos e Tracking omitidas para brevidade mas mantidas no código real conforme arquivos anteriores */}
-        {activeTab === 'clients' && (
-           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Gestão de Clientes</h2>
-              <button onClick={() => { setEditingItem(null); setIsModalOpen(true); }} className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] tracking-widest hover:bg-indigo-700 transition-all uppercase shadow-lg shadow-indigo-100">+ Novo Cliente</button>
-            </div>
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden overflow-x-auto">
-              <table className="w-full text-left min-w-[600px]">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="px-8 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">Identificação</th>
-                    <th className="px-8 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">Contato</th>
-                    <th className="px-8 py-5 text-right"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {clients.map(c => (
-                    <tr key={c.id} className="hover:bg-indigo-50/20 transition">
-                      <td className="px-8 py-6">
-                        <div className="font-bold text-gray-900">{c.name}</div>
-                        <div className="text-[10px] text-gray-400">{c.document}</div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="text-sm font-semibold text-gray-600">{c.phone}</div>
-                        <div className="text-[10px] text-gray-400">{c.email}</div>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <button onClick={() => { setEditingItem(c); setIsModalOpen(true); }} className="text-[10px] font-black text-indigo-600 hover:text-indigo-900 tracking-widest uppercase">Editar</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
         {/* AI BUBBLE UI */}
         <div id="ai-bubble">
           {!isAiOpen ? (
             <button 
               onClick={() => setIsAiOpen(true)}
-              className="w-16 h-16 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-110 transition-transform active:scale-95 shadow-indigo-400"
+              className="w-16 h-16 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-110 transition-transform active:scale-95 shadow-indigo-400/50"
+              title="Assistente IA"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12"/><circle cx="17" cy="7" r="5"/></svg>
             </button>
           ) : (
-            <div className="ai-chat-window w-80 sm:w-96 h-[500px] bg-white rounded-[2rem] shadow-2xl border border-gray-100 flex flex-col overflow-hidden">
-              <div className="bg-indigo-600 p-6 flex justify-between items-center">
+            <div className="ai-chat-window w-80 sm:w-96 h-[550px] bg-white rounded-[2rem] shadow-2xl border border-gray-100 flex flex-col overflow-hidden">
+              <div className="bg-indigo-600 p-6 flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                  <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
                   </div>
                   <div className="text-white">
-                    <p className="text-xs font-black uppercase tracking-widest">Assistente Mixto</p>
-                    <p className="text-[8px] opacity-80 uppercase font-bold">Powered by Gemini AI</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest leading-none">Assistente Mixto</p>
+                    <p className="text-[8px] opacity-70 uppercase font-bold mt-1">Conectado via Gemini</p>
                   </div>
                 </div>
-                <button onClick={() => setIsAiOpen(false)} className="text-white/80 hover:text-white">&times;</button>
+                <button onClick={() => setIsAiOpen(false)} className="text-white/80 hover:text-white bg-white/10 w-8 h-8 rounded-lg flex items-center justify-center transition-colors">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/50">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/30">
                 {aiMessages.map((msg, idx) => (
                   <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] p-3 rounded-2xl text-[11px] font-medium leading-relaxed shadow-sm ${
+                    <div className={`max-w-[85%] p-4 rounded-2xl text-[12px] font-medium leading-relaxed shadow-sm ${
                       msg.role === 'user' 
                         ? 'bg-indigo-600 text-white rounded-tr-none' 
                         : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
@@ -296,7 +262,7 @@ const App: React.FC = () => {
                 ))}
                 {isAiLoading && (
                   <div className="flex justify-start">
-                    <div className="bg-white p-3 rounded-2xl border border-gray-100 flex gap-1">
+                    <div className="bg-white p-4 rounded-2xl border border-gray-100 flex gap-1.5 items-center">
                       <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></span>
                       <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
                       <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
@@ -312,11 +278,11 @@ const App: React.FC = () => {
                     type="text" 
                     value={aiInput}
                     onChange={(e) => setAiInput(e.target.value)}
-                    placeholder="Pergunte algo..."
-                    className="flex-1 bg-gray-50 border-none rounded-xl px-4 py-2 text-[11px] font-semibold outline-none focus:ring-1 focus:ring-indigo-200"
+                    placeholder="Como posso ajudar?"
+                    className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-[12px] font-semibold outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 transition-all"
                   />
-                  <button type="submit" className="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                  <button type="submit" className="bg-indigo-600 text-white w-12 h-12 rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
                   </button>
                 </div>
               </form>
@@ -324,44 +290,16 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Modal de Cadastro simplificado */}
-        {isModalOpen && (
-           <div className="fixed inset-0 bg-indigo-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-[2.5rem] w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-               <div className="p-8 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="text-lg font-black text-indigo-950 uppercase tracking-tight">
-                  {editingItem ? 'Editar' : 'Novo'} {activeTab === 'clients' ? 'Cliente' : 'Item'}
-                </h3>
-                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-rose-500 text-2xl">&times;</button>
-              </div>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                const data: any = {};
-                formData.forEach((v, k) => data[k] = v);
-                handleAddOrEdit(activeTab, data);
-              }} className="p-8 space-y-6 overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Nome Completo</label>
-                      <input name="name" defaultValue={editingItem?.name} required className="border-2 border-gray-100 rounded-xl p-3 bg-gray-50 font-bold text-sm outline-none focus:border-indigo-500" />
-                   </div>
-                   <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Telefone</label>
-                      <input name="phone" defaultValue={editingItem?.phone} required className="border-2 border-gray-100 rounded-xl p-3 bg-gray-50 font-bold text-sm outline-none focus:border-indigo-500" />
-                   </div>
-                   <div className="flex flex-col gap-1 md:col-span-2">
-                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Documento (CPF/CNPJ)</label>
-                      <input name="document" defaultValue={editingItem?.document} className="border-2 border-gray-100 rounded-xl p-3 bg-gray-50 font-bold text-sm outline-none focus:border-indigo-500" />
-                   </div>
-                </div>
-                <div className="pt-6 border-t border-gray-50 flex gap-4">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 text-[10px] font-black uppercase text-gray-400">Cancelar</button>
-                  <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-100">Salvar Dados</button>
-                </div>
-              </form>
-            </div>
-           </div>
+        {/* Modal Simplificado para Outras Abas */}
+        {activeTab !== 'dashboard' && (
+          <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20v-6M9 20v-10M6 20v-4M15 20v-12M18 20v-16"/></svg>
+             </div>
+             <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Conteúdo de {activeTab}</h3>
+             <p className="text-gray-500 text-sm max-w-md">Esta funcionalidade está pronta para receber seus dados e interações conforme o modelo principal.</p>
+             <button onClick={() => setActiveTab('dashboard')} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-black text-[10px] tracking-widest uppercase shadow-xl shadow-indigo-100">Voltar ao Painel</button>
+          </div>
         )}
       </div>
     </Layout>
