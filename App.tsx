@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Layout from './components/Layout';
 import { 
@@ -105,7 +106,8 @@ const App: React.FC = () => {
     setIsAiLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+      // Create a new instance right before making the call to ensure latest API key
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const systemPrompt = `Você é o assistente virtual exclusivo do software "Mixto de Tudo Serviços".
       Você ajuda o administrador a gerenciar o negócio.
@@ -126,16 +128,20 @@ const App: React.FC = () => {
       4. Se o usuário quiser saber como cadastrar algo, direcione para as abas no menu lateral.
       5. Mantenha as respostas curtas e objetivas.`;
 
-      const response = await ai.models.generateContent({
+      const result = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: userMsg,
-        config: { systemInstruction: systemPrompt }
+        config: { 
+          systemInstruction: systemPrompt,
+          temperature: 0.7,
+        }
       });
 
-      setAiMessages(prev => [...prev, { role: 'ai', text: response.text || "Não consegui processar sua solicitação agora." }]);
+      const responseText = result.text;
+      setAiMessages(prev => [...prev, { role: 'ai', text: responseText || "Não consegui processar sua solicitação agora." }]);
     } catch (error) {
       console.error("Erro na API Gemini:", error);
-      setAiMessages(prev => [...prev, { role: 'ai', text: "Erro ao conectar com a inteligência artificial. Verifique se a chave API_KEY está configurada corretamente no seu painel do Netlify." }]);
+      setAiMessages(prev => [...prev, { role: 'ai', text: "Erro ao conectar com a inteligência artificial. Verifique se a variável de ambiente API_KEY está configurada corretamente no seu painel do Netlify." }]);
     } finally {
       setIsAiLoading(false);
     }
@@ -221,6 +227,18 @@ const App: React.FC = () => {
           </div>
         )}
 
+        {/* Outras abas (clientes, orçamentos, etc) seriam renderizadas aqui conforme a lógica original */}
+        {activeTab !== 'dashboard' && (
+          <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20v-6M9 20v-10M6 20v-4M15 20v-12M18 20v-16"/></svg>
+             </div>
+             <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Módulo {activeTab}</h3>
+             <p className="text-gray-500 text-sm max-w-md">Para manter a brevidade na implantação do Netlify, os formulários específicos estão disponíveis conforme a versão original do código.</p>
+             <button onClick={() => setActiveTab('dashboard')} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-black text-[10px] tracking-widest uppercase shadow-xl shadow-indigo-100">Voltar ao Painel</button>
+          </div>
+        )}
+
         {/* AI BUBBLE UI */}
         <div id="ai-bubble">
           {!isAiOpen ? (
@@ -289,18 +307,6 @@ const App: React.FC = () => {
             </div>
           )}
         </div>
-
-        {/* Modal Simplificado para Outras Abas */}
-        {activeTab !== 'dashboard' && (
-          <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20v-6M9 20v-10M6 20v-4M15 20v-12M18 20v-16"/></svg>
-             </div>
-             <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Conteúdo de {activeTab}</h3>
-             <p className="text-gray-500 text-sm max-w-md">Esta funcionalidade está pronta para receber seus dados e interações conforme o modelo principal.</p>
-             <button onClick={() => setActiveTab('dashboard')} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-black text-[10px] tracking-widest uppercase shadow-xl shadow-indigo-100">Voltar ao Painel</button>
-          </div>
-        )}
       </div>
     </Layout>
   );
